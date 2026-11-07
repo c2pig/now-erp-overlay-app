@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.fluent.ts",
+    "@types/servicenow/fluent/tables.d.ts",
+    "node_modules/@servicenow/sdk-core/dist/global/Keys.d.ts",
+    "node_modules/@servicenow/sdk-core/dist/global/data-helpers.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "target", "src/generated"]
+}

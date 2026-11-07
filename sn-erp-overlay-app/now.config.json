@@ -1,0 +1,13 @@
+{
+  "scope": "x_ent_erp_ovl",
+  "scopeId": "c7e4a91b2d8f4e6a9b0c1d2e3f405162",
+  "name": "Agentic ERP Overlay",
+  "description": "Credit-block overlays that queue an agent audit and apply the callback decision.",
+  "fluentDir": "src",
+  "generatedDir": "generated",
+  "clientDir": "",
+  "serverModulesDir": "src/server",
+  "serverModulesExcludePatterns": ["**/*.ts", "**/*.js", "**/*.json", "**/*.now.ts"],
+  "jsLevel": "es_latest",
+  "active": true
+}
