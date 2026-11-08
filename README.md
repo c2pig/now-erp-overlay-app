@@ -1,6 +1,6 @@
 # Agentic ERP Overlay
 
-ServiceNow Fluent application for credit-block overlays. Scope `x_ent_erp_ovl` (the hyphenated form `x-ent-erp-ovl` is not a valid scope). The application source lives in [`sn-erp-overlay-app`](sn-erp-overlay-app).
+ServiceNow Fluent application for credit-block overlays. Scope `x_ent_erp_ovl` (the hyphenated form `x-ent-erp-ovl` is not a valid scope). The application source is the repository root.
 
 A workspace user queues an audit. A flow looks up customer metrics and calls the model runtime with a signed request. The flow never releases credit. Release happens only when a caller posts an approved decision to the callback API.
 
@@ -50,21 +50,20 @@ The flow looks up `customer_metrics` by `customer_id`, then calls the Integratio
 ## Layout
 
 ```text
-sn-erp-overlay-app/
-├── now.config.json          scope, name, and SDK paths
-├── package.json
-├── src/app.fluent.ts        tables, role, and system properties
-├── src/server/api-routes.ts callback REST API
-├── src/server/spoke-actions.ts signed InvokeModel action
-├── src/server/workflow-flows.ts AuditCreditExceptionFlow
-└── src/ui/workspace-components.ts workspace list and Run Agentic Audit
+now.config.json                 scope, name, and SDK paths
+package.json
+src/app.fluent.ts               tables, role, and system properties
+src/server/api-routes.ts        callback REST API
+src/server/spoke-actions.ts     signed InvokeModel action
+src/server/workflow-flows.ts    AuditCreditExceptionFlow
+src/ui/workspace-components.ts  workspace list and Run Agentic Audit
 ```
 
 The compiler reads `*.now.ts`. `npm run build` and `npm run typecheck` copy these sources to sibling `*.now.ts` files first. The copies are gitignored.
 
 ## Build
 
-From `sn-erp-overlay-app`, with Node.js 20 or newer:
+From the repository root, with Node.js 20 or newer:
 
 ```bash
 npm install
