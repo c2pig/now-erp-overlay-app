@@ -1,0 +1,22 @@
+{
+  "name": "sn-erp-overlay-app",
+  "version": "1.0.0",
+  "description": "Agentic ERP Overlay (scope x_ent_erp_ovl). Fluent metadata is compiled by the now-sdk binary from @servicenow/sdk 4.14.0. @servicenow/cli 30.2.0 is the separate Now CLI and is installed as requested. No package substitution was required.",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node ./scripts/prepare-fluent-entry.mjs && now-sdk build",
+    "typecheck": "node ./scripts/prepare-fluent-entry.mjs && tsc --noEmit --pretty false",
+    "validate": "node ./scripts/prepare-fluent-entry.mjs && tsc --noEmit --pretty false && now-sdk build",
+    "now-sdk:build": "node ./scripts/prepare-fluent-entry.mjs && now-sdk build",
+    "transform": "now-sdk transform",
+    "deploy": "now-sdk install"
+  },
+  "dependencies": {
+    "@servicenow/cli": "30.2.0",
+    "@servicenow/sdk": "4.14.0",
+    "typescript": "7.0.2"
+  }
+}
