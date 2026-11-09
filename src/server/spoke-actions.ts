@@ -5,7 +5,8 @@
 // HMAC-SHA256 is implemented in this script. CertificateEncryption.generateMac accepts a Java
 // string key and returns Base64, so it cannot carry the raw kDate/kRegion/kService/kSigning bytes.
 // node:crypto is not used: the script step executes in the instance Rhino runtime, not in Node.
-// Outputs status_code, body, error, and timed_out are declared on the action and on the step.
+// Outputs status_code, body, error, timed_out, correlation_id, and aws_request_id are declared
+// on the action and on the step. aws_request_id is the x-amzn-requestid response header.
 // Access key, secret key, and Authorization are never written to the log.
 
 import { Action, FlowObject, actionStep, wfa } from "@servicenow/sdk/automation"
@@ -16,6 +17,15 @@ const INVOKE_BEDROCK_SCRIPT = `(function execute(inputs, outputs) {
   var bodyText = "";
   var errorText = "";
   var timedOut = false;
+  var processName = String(inputs.process || "credit");
+  var correlationId = String(inputs.correlation_id || "");
+  var awsRequestId = "";
+  if (processName !== "credit" && processName !== "order" && processName !== "fulfillment" && processName !== "invoice" && processName !== "cash") {
+    processName = "credit";
+  }
+  if (!correlationId) {
+    correlationId = String(gs.generateGUID());
+  }
 
   function oneLine(value) {
     return String(value == null ? "" : value).replace(/[\\r\\n]/g, " ");
@@ -28,11 +38,23 @@ const INVOKE_BEDROCK_SCRIPT = `(function execute(inputs, outputs) {
     if (errorText.length > 4000) {
       errorText = errorText.substring(0, 4000);
     }
+    if (awsRequestId.length > 100) {
+      awsRequestId = awsRequestId.substring(0, 100);
+    }
     outputs.status_code = statusCode;
     outputs.body = bodyText;
     outputs.error = errorText;
     outputs.timed_out = timedOut;
-    gs.info("bedrock_invoke order_id=" + oneLine(inputs.order_id) + " http_status=" + statusCode + " timed_out=" + (timedOut ? "true" : "false"));
+    outputs.correlation_id = correlationId;
+    outputs.aws_request_id = awsRequestId;
+    gs.info(
+      "bedrock_invoke process=" + oneLine(processName) +
+      " order_id=" + oneLine(inputs.order_id) +
+      " correlation_id=" + oneLine(correlationId) +
+      " aws_request_id=" + oneLine(awsRequestId) +
+      " http_status=" + statusCode +
+      " timed_out=" + (timedOut ? "true" : "false")
+    );
   }
 
   function utf8Bytes(value) {
@@ -310,8 +332,18 @@ const INVOKE_BEDROCK_SCRIPT = `(function execute(inputs, outputs) {
       risk_tier: inputs.risk_tier,
       past_due: inputs.past_due
     };
-    var prompt = "Review this credit block and recommend APPROVED or DENIED with a short justification. "
-      + "order_id=" + String(inputs.order_id || "")
+    var stageQuestion = {
+      credit: "recommend APPROVED or DENIED for this credit block",
+      order: "recommend accept or hold for this order",
+      fulfillment: "recommend release or hold for pick and ship",
+      invoice: "recommend release or hold for billing",
+      cash: "recommend apply, short-pay, or hold for this payment"
+    };
+    var prompt = "Review this " + processName + " stage and " + stageQuestion[processName] + " with a short justification. "
+      + "This call only advises. It does not release the stage. "
+      + "process=" + processName
+      + " correlation_id=" + correlationId
+      + " order_id=" + String(inputs.order_id || "")
       + " customer_id=" + String(inputs.customer_id || "")
       + " amount=" + String(inputs.amount || "")
       + " customer_metrics=" + JSON.stringify(customerMetrics);
@@ -379,6 +411,9 @@ const INVOKE_BEDROCK_SCRIPT = `(function execute(inputs, outputs) {
     var httpResponse = outbound.execute();
     statusCode = Number(httpResponse.getStatusCode());
     bodyText = String(httpResponse.getBody() || "");
+    if (typeof httpResponse.getHeader === "function") {
+      awsRequestId = String(httpResponse.getHeader("x-amzn-requestid") || httpResponse.getHeader("X-Amzn-Requestid") || "");
+    }
     if (typeof httpResponse.haveError === "function" && httpResponse.haveError()) {
       errorText = String(httpResponse.getErrorMessage() || "");
     }
@@ -406,7 +441,7 @@ export const invokeBedrockCreditAudit = Action(
     $id: Now.ID["action_invoke_bedrock"],
     name: "Invoke Bedrock Credit Audit",
     internalName: "invoke_bedrock_credit_audit",
-    description: "Signs and sends a Bedrock InvokeModel request for a credit exception. Does not release credit.",
+    description: "Signs and sends a Bedrock InvokeModel request for one ERP stage. The model only advises. This action does not set RELEASED.",
     category: "credit_block",
     access: "public",
     inputs: {
@@ -418,6 +453,8 @@ export const invokeBedrockCreditAudit = Action(
         maxLength: 40,
         mandatory: true,
       }),
+      process: StringColumn({ label: "Process", maxLength: 40, mandatory: false }),
+      correlation_id: StringColumn({ label: "Correlation ID", maxLength: 40, mandatory: false }),
       customer_metrics: FlowObject({
         label: "Customer Metrics",
         mandatory: false,
@@ -434,6 +471,8 @@ export const invokeBedrockCreditAudit = Action(
       body: StringColumn({ label: "Body", maxLength: 8000 }),
       error: StringColumn({ label: "Error", maxLength: 4000 }),
       timed_out: BooleanColumn({ label: "Timed Out" }),
+      correlation_id: StringColumn({ label: "Correlation ID", maxLength: 40 }),
+      aws_request_id: StringColumn({ label: "AWS Request ID", maxLength: 100 }),
     },
   },
   (params) => {
@@ -464,12 +503,19 @@ export const invokeBedrockCreditAudit = Action(
             label: "Past Due",
             value: wfa.dataPill(params.inputs.customer_metrics.past_due, "boolean"),
           },
+          process: { label: "Process", value: wfa.dataPill(params.inputs.process, "string") },
+          correlation_id: {
+            label: "Correlation ID",
+            value: wfa.dataPill(params.inputs.correlation_id, "string"),
+          },
         },
         outputVariables: {
           status_code: IntegerColumn({ label: "Status Code" }),
           body: StringColumn({ label: "Body", maxLength: 8000 }),
           error: StringColumn({ label: "Error", maxLength: 4000 }),
           timed_out: BooleanColumn({ label: "Timed Out" }),
+          correlation_id: StringColumn({ label: "Correlation ID", maxLength: 40 }),
+          aws_request_id: StringColumn({ label: "AWS Request ID", maxLength: 100 }),
         },
       },
     )
@@ -478,6 +524,8 @@ export const invokeBedrockCreditAudit = Action(
       body: wfa.dataPill(invoked.body, "string"),
       error: wfa.dataPill(invoked.error, "string"),
       timed_out: wfa.dataPill(invoked.timed_out, "boolean"),
+      correlation_id: wfa.dataPill(invoked.correlation_id, "string"),
+      aws_request_id: wfa.dataPill(invoked.aws_request_id, "string"),
     })
   },
 )
