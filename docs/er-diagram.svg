@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1220" viewBox="0 0 1560 1220" role="img" aria-labelledby="title desc">
+  <title id="title">ER diagram of the Agentic ERP Overlay app</title>
+  <desc id="desc">One application contains many flows. This app has one flow, one custom action, two tables, and runtime rows created when someone uses the app.</desc>
+  <style>
+    text { font-family: "Segoe UI", Helvetica, Arial, sans-serif; }
+    .title { font-size: 22px; font-weight: 600; fill: #1c2430; }
+    .sub { font-size: 13px; fill: #5e6a78; }
+    .band { font-size: 14px; font-weight: 600; fill: #1c2430; }
+    .name { font-size: 14px; font-weight: 600; fill: #1c2430; }
+    .kind { font-size: 12px; fill: #5e6a78; }
+    .rel { font-size: 12px; fill: #1c2430; }
+    .card { stroke: #1c2430; stroke-width: 1.25; }
+    .line { fill: none; stroke: #5e6a78; stroke-width: 1.4; }
+  </style>
+  <rect width="1560" height="1220" fill="#f7f4ee"/>
+  <text class="title" x="32" y="36">App, flow, and records</text>
+  <text class="sub" x="32" y="58">One app can contain many flows. This app has one. A flow watches rows. It does not store them.</text>
+
+  <text class="band" x="32" y="96">1. The app contains these definitions</text>
+  <rect class="card" x="32" y="112" width="230" height="74" rx="8" fill="#d5e4f5"/>
+  <text class="name" x="46" y="142">APP</text>
+  <text class="kind" x="46" y="162">Agentic ERP Overlay</text>
+  <text class="kind" x="46" y="178">scope x_ent_erp_ovl</text>
+  <path class="line" d="M147 186 V206 H1362"/>
+  <path class="line" d="M142 206 V224"/>
+  <path class="line" d="M386 206 V224"/>
+  <path class="line" d="M630 206 V224"/>
+  <path class="line" d="M874 206 V224"/>
+  <path class="line" d="M1118 206 V224"/>
+  <path class="line" d="M1362 206 V224"/>
+  <text class="rel" x="164" y="202">contains</text>
+
+  <rect class="card" x="32" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="46" y="250">ROLE</text>
+  <text class="kind" x="46" y="270">x_ent_erp_ovl.user</text>
+  <text class="kind" x="46" y="286">exactly 1</text>
+
+  <rect class="card" x="276" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="290" y="250">PROPERTY</text>
+  <text class="kind" x="290" y="270">AWS settings and token</text>
+  <text class="kind" x="290" y="286">0..*</text>
+
+  <rect class="card" x="520" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="534" y="250">TABLE</text>
+  <text class="kind" x="534" y="270">the two business tables</text>
+  <text class="kind" x="534" y="286">0..* tables</text>
+
+  <rect class="card" x="764" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="778" y="250">COLUMN</text>
+  <text class="kind" x="778" y="270">fields on a table</text>
+  <text class="kind" x="778" y="286">0..* per table</text>
+  <path class="line" d="M740 258 H764"/>
+
+  <rect class="card" x="1008" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="1022" y="250">REST API</text>
+  <text class="kind" x="1022" y="270">Agent Callback</text>
+  <text class="kind" x="1022" y="286">exactly 1</text>
+
+  <rect class="card" x="1252" y="224" width="220" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="1266" y="250">WORKSPACE</text>
+  <text class="kind" x="1266" y="270">lists credit exceptions</text>
+  <text class="kind" x="1266" y="286">exactly 1</text>
+
+  <text class="band" x="32" y="340">2. Inside the flow</text>
+  <text class="sub" x="188" y="340">One trigger, many steps, one optional branch. Look Up Record and Update Record belong to the platform.</text>
+
+  <rect class="card" x="32" y="360" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="46" y="386">FLOW</text>
+  <text class="kind" x="46" y="406">AuditCreditExceptionFlow</text>
+  <text class="kind" x="46" y="422">0..* per app</text>
+
+  <rect class="card" x="330" y="360" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="344" y="386">TRIGGER</text>
+  <text class="kind" x="344" y="406">created or updated</text>
+  <text class="kind" x="344" y="422">exactly 1 per flow</text>
+  <path class="line" d="M262 394 H330"/>
+  <text class="rel" x="268" y="386">1 to 1</text>
+
+  <rect class="card" x="628" y="360" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="642" y="386">ACTION</text>
+  <text class="kind" x="642" y="406">target of a flow step</text>
+  <text class="kind" x="642" y="422">many steps, one action</text>
+
+  <rect class="card" x="926" y="360" width="250" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="940" y="386">CUSTOM ACTION</text>
+  <text class="kind" x="940" y="406">Invoke Bedrock Credit Audit</text>
+  <text class="kind" x="940" y="422">owned by this app, 0..*</text>
+  <path class="line" d="M858 394 H926"/>
+  <text class="rel" x="864" y="386">is 1 action</text>
+
+  <rect class="card" x="32" y="470" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="46" y="496">FLOW STEP</text>
+  <text class="kind" x="46" y="516">lookup, then Bedrock call</text>
+  <text class="kind" x="46" y="532">0..* per flow</text>
+  <path class="line" d="M147 428 V470"/>
+  <text class="rel" x="156" y="454">0..*</text>
+  <path class="line" d="M147 470 V448 H743 V428"/>
+  <text class="rel" x="360" y="442">calls 1 action</text>
+
+  <rect class="card" x="330" y="470" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="344" y="496">FLOW IF</text>
+  <text class="kind" x="344" y="516">failed, missing, or timed out</text>
+  <text class="kind" x="344" y="532">0..1 per flow</text>
+  <path class="line" d="M262 504 H330"/>
+  <text class="rel" x="272" y="496">0..1</text>
+
+  <rect class="card" x="628" y="470" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="642" y="496">UPDATE STEP</text>
+  <text class="kind" x="642" y="516">set the row to BLOCKED</text>
+  <text class="kind" x="642" y="532">exactly 1 inside the If</text>
+  <path class="line" d="M560 504 H628"/>
+  <text class="rel" x="568" y="496">1 to 1</text>
+
+  <rect class="card" x="926" y="470" width="250" height="68" rx="8" fill="#f6e7cf"/>
+  <text class="name" x="940" y="496">PLATFORM ACTION</text>
+  <text class="kind" x="940" y="516">Look Up Record</text>
+  <text class="kind" x="940" y="532">Update Record</text>
+  <path class="line" d="M858 504 H926"/>
+  <text class="rel" x="864" y="496">calls 1</text>
+
+  <rect class="card" x="926" y="580" width="250" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="940" y="606">SCRIPT STEP</text>
+  <text class="kind" x="940" y="626">signs the call to Bedrock</text>
+  <text class="kind" x="940" y="642">exactly 1</text>
+  <path class="line" d="M1176 394 H1216 V614 H1176"/>
+  <text class="rel" x="1222" y="510">1 step</text>
+
+  <rect class="card" x="628" y="580" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="642" y="606">STEP INPUT</text>
+  <text class="kind" x="642" y="626">order, customer, amount</text>
+  <text class="kind" x="642" y="642">0..*</text>
+  <path class="line" d="M926 614 H858"/>
+  <text class="rel" x="868" y="606">0..*</text>
+
+  <rect class="card" x="330" y="580" width="230" height="68" rx="8" fill="#fffdf9"/>
+  <text class="name" x="344" y="606">STEP OUTPUT</text>
+  <text class="kind" x="344" y="626">status, body, error</text>
+  <text class="kind" x="344" y="642">0..*</text>
+  <path class="line" d="M628 614 H560"/>
+  <text class="rel" x="568" y="606">0..*</text>
+
+  <text class="band" x="32" y="700">3. Rows created when someone uses the app</text>
+  <rect x="32" y="716" width="1496" height="300" rx="10" fill="#e7f2e4" stroke="#b7c9b0"/>
+
+  <rect class="card" x="52" y="748" width="210" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="66" y="774">UI ACTION</text>
+  <text class="kind" x="66" y="794">Run Agentic Audit</text>
+  <text class="kind" x="66" y="810">form button</text>
+
+  <rect class="card" x="360" y="748" width="240" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="374" y="774">CREDIT EXCEPTIONS</text>
+  <text class="kind" x="374" y="794">table of orders</text>
+  <text class="kind" x="374" y="810">the workspace lists it</text>
+  <path class="line" d="M262 782 H360"/>
+  <text class="rel" x="268" y="774">on 1 table</text>
+
+  <rect class="card" x="700" y="748" width="210" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="714" y="774">CREDIT ROW</text>
+  <text class="kind" x="714" y="794">one order</text>
+  <text class="kind" x="714" y="810">0..* stored</text>
+  <path class="line" d="M600 782 H700"/>
+  <text class="rel" x="612" y="774">stores 0..*</text>
+
+  <rect class="card" x="1000" y="748" width="210" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="1014" y="774">METRIC ROW</text>
+  <text class="kind" x="1014" y="794">one customer</text>
+  <text class="kind" x="1014" y="810">0 or 1 match</text>
+  <path class="line" d="M910 782 H1000" stroke-dasharray="4 3"/>
+  <text class="rel" x="916" y="774">customer_id</text>
+
+  <rect class="card" x="1240" y="748" width="260" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="1254" y="774">CUSTOMER METRICS</text>
+  <text class="kind" x="1254" y="794">table of customers</text>
+  <text class="kind" x="1254" y="810">stores 0..* rows</text>
+  <path class="line" d="M1210 782 H1240"/>
+
+  <rect class="card" x="52" y="900" width="210" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="66" y="926">FLOW RUN</text>
+  <text class="kind" x="66" y="946">one execution</text>
+  <text class="kind" x="66" y="962">0..* per flow</text>
+  <path class="line" d="M16 394 V934 H52"/>
+  <text class="rel" x="22" y="680">0..* runs</text>
+
+  <rect class="card" x="360" y="900" width="240" height="68" rx="8" fill="#f4faf2"/>
+  <text class="name" x="374" y="926">REST ROUTE</text>
+  <text class="kind" x="374" y="946">POST /agent-callback</text>
+  <text class="kind" x="374" y="962">reads the callback token</text>
+  <path class="line" d="M805 816 V870 H600 V900"/>
+  <text class="rel" x="620" y="864">sets RELEASED or BLOCKED</text>
+  <path class="line" d="M157 968 V990 H805 V816"/>
+  <text class="rel" x="360" y="1006">each run is about 1 credit row</text>
+
+  <text class="sub" x="32" y="1060">Blue is the app. White cards are installed by deploy. Green cards are created when a person uses the app. Tan is a platform action.</text>
+  <text class="sub" x="32" y="1082">1 means exactly one. 0..1 means optional. 0..* means many. customer_id is the same text on both rows, not a foreign key.</text>
+  <text class="sub" x="32" y="1104">The button sets a BLOCKED row to PROCESSING. The trigger starts one flow run. The script step reads the AWS properties.</text>
+  <text class="sub" x="32" y="1126">A failed model call takes the failure branch and sets the row back to BLOCKED. Only the callback can set RELEASED.</text>
+</svg>
