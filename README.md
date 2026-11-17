@@ -1,30 +1,67 @@
-# Agentic ERP Overlay
+# Agentic ERP Overlay (ServiceNow Fluent + Bedrock)
 
-ServiceNow Fluent application for an order-to-cash overlay. Scope `x_ent_erp_ovl` (the hyphenated form `x-ent-erp-ovl` is not a valid scope). The application source is the repository root.
+[![Portfolio Hub](https://img.shields.io/badge/0trust.dev-Portfolio%20Hub-0052CC?logo=google-cloud&logoColor=white)](https://0trust.dev)
+[![Ecosystem Pillar](https://img.shields.io/badge/Ecosystem-Pillar%204:%20System%20of%20Action-blueviolet)](https://0trust.dev#pillar-catalog)
+[![Framework: ServiceNow Fluent](https://img.shields.io/badge/Framework-ServiceNow%20Fluent%20(SDK%204.14)-81B441?logo=servicenow&logoColor=white)](https://developer.servicenow.com)
+[![Model Runtime: AWS Bedrock](https://img.shields.io/badge/Runtime-AWS%20Bedrock%20(SigV4)-FF9900?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
+[![Security: Zero Trust HITL](https://img.shields.io/badge/Security-Zero%20Trust%20HITL%20Gates-success)](#security-invariants)
+[![Offline Build](https://img.shields.io/badge/Build-Offline%20Verified%20(now--sdk)-success)](#build--verification)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-One app holds five stages: credit, order, fulfillment, invoice, and cash. A person queues the audit. The stage flow looks up customer metrics and calls the model runtime with a signed request. The model only advises. None of the flows set `RELEASED`. Release happens only when a caller posts an approved decision to the callback API.
+> **Enterprise System of Action for AI Governance**  
+> A production-grade ServiceNow Fluent application (scope `x_ent_erp_ovl`) orchestrating order-to-cash exception workflows with Amazon Bedrock runtime inference, AWS SigV4 request signing, dual audit trails, and strict Human-in-the-Loop (HITL) release gates.
 
-## Architecture
+---
+
+## Executive Overview
+
+Enterprise AI agents can read ERP data and analyze exceptions, but **granting AI agents autonomous write-back or release authority creates catastrophic risk of unauthorized financial releases and Confused Deputy attacks**.
+
+This repository implements **Pillar 4 (Enterprise System of Action)** of the **[0trust.dev](https://0trust.dev)** ecosystem. It demonstrates how to pair ServiceNow’s modern TypeScript-based **Fluent SDK** (`@servicenow/sdk`) with **Amazon Bedrock** to create an audited, resilient Human-in-the-Loop exception management overlay across five mission-critical order-to-cash stages:
+1. **Credit Holds** (`credit_exceptions`)
+2. **Order Holds** (`order_exceptions`)
+3. **Fulfillment Holds** (`fulfillment_exceptions`)
+4. **Invoice Disputes** (`invoice_exceptions`)
+5. **Cash Application** (`cash_exceptions`)
+
+```
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │                       ServiceNow System of Action                      │
+   │  Operator clicks      Background Flow executes       Scripted REST     │
+   │  "Run Agentic Audit"  AWS SigV4 Signed Bedrock Call  Release Callback  │
+   │        │                         │                           │         │
+   │        ▼                         ▼                           ▼         │
+   │   [BLOCKED] ──────────────► [PROCESSING] ──────────────► [RELEASED]    │
+   │        ▲                         │ (on error/timeout)                  │
+   │        └─────────────────────────┘                                     │
+   └────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Architecture & Workflows
+
+### Component Architecture
 
 ```mermaid
 flowchart LR
-  subgraph workspace [Workspace]
-    list[Credit Exceptions list]
-    button[Run Agentic Audit]
+  subgraph workspace [ServiceNow Workspace]
+    list[Credit Exceptions List]
+    button[Run Agentic Audit Button]
   end
 
-  subgraph records [Records]
+  subgraph records [Enterprise System Records]
     exceptions[(credit_exceptions)]
     metrics[(customer_metrics)]
   end
 
-  subgraph automation [Flow and action]
+  subgraph automation [IntegrationHub & Flows]
     flow[AuditCreditExceptionFlow]
     action[Invoke Bedrock Credit Audit]
   end
 
-  runtime[Bedrock Runtime]
-  agent[Callback caller]
+  runtime[AWS Bedrock Runtime]
+  agent[External Governed Agent / Operator]
   callback["POST /api/x_ent_erp_ovl/v1/agent-callback"]
 
   list --> button
@@ -41,91 +78,150 @@ flowchart LR
   callback -->|"APPROVED sets RELEASED, DENIED sets BLOCKED"| exceptions
 ```
 
+### End-to-End Sequence Diagram
+
 ```mermaid
 sequenceDiagram
-  actor User
-  participant Form
-  participant Exceptions as Credit Exceptions
+  autonumber
+  actor User as ERP Operator
+  participant Form as ServiceNow Workspace
+  participant Exceptions as Credit Exceptions Table
   participant Flow as AuditCreditExceptionFlow
-  participant Metrics as Customer Metrics
-  participant Action as Invoke Bedrock Credit Audit
-  participant Bedrock as Bedrock Runtime
-  actor Caller as Callback caller
-  participant API as agent-callback API
+  participant Metrics as Customer Metrics Table
+  participant Action as Invoke Bedrock Action
+  participant Bedrock as AWS Bedrock Runtime
+  actor Caller as Callback Caller / HITL Gate
+  participant API as Scripted REST API (/agent-callback)
 
-  User->>Form: Open a BLOCKED row and click Run Agentic Audit
-  Form->>Exceptions: Set current_status to PROCESSING
-  Exceptions->>Flow: Row inserted or updated while PROCESSING
-  Flow->>Metrics: Look up the row's customer_id
-  Metrics-->>Flow: Exposure, limit, risk tier, past due
-  Flow->>Action: Order, customer, amount, and those metrics
-  Action->>Bedrock: Signed InvokeModel request
-  Bedrock-->>Action: status_code, body, error, timed_out
-  alt Status is missing, the call timed out, or status is not 200
-    Flow->>Exceptions: Append a warning and set BLOCKED
-  else HTTP 200
-    Note over Flow,Exceptions: Status stays PROCESSING. This flow does not release credit.
+  User->>Form: Open BLOCKED record & click "Run Agentic Audit"
+  Form->>Exceptions: Set current_status to PROCESSING + write correlation_id
+  Exceptions->>Flow: Trigger flow on PROCESSING update
+  Flow->>Metrics: Query financial exposure, limit, risk tier, past due
+  Metrics-->>Flow: Return customer financial telemetry
+  Flow->>Action: Pass order amount, customer metrics, correlation_id
+  Action->>Bedrock: Signed AWS SigV4 InvokeModel HTTP request
+  Bedrock-->>Action: Return HTTP 200 + AI advisory payload + x-amzn-requestid
+  alt Call times out, fails, or non-200
+    Flow->>Exceptions: Journal error warning and reset current_status to BLOCKED
+  else HTTP 200 Success
+    Note over Flow,Exceptions: Status STAYS PROCESSING. Automation NEVER releases credit.
   end
-  Caller->>API: POST order_id, decision, justification, and the token
-  alt decision is APPROVED
-    API->>Exceptions: Set RELEASED and append the justification
-  else decision is DENIED
-    API->>Exceptions: Set BLOCKED and append the justification
+  Caller->>API: POST /agent-callback with decision, justification & X-Agent-Callback-Token
+  alt Decision is APPROVED
+    API->>Exceptions: Set current_status to RELEASED + record justification + audit event
+  else Decision is DENIED
+    API->>Exceptions: Set current_status to BLOCKED + record justification + audit event
   end
 ```
 
-`Run Agentic Audit` is a record button. It is available while `current_status` is `BLOCKED`, and it sets that field to `PROCESSING`, which starts `AuditCreditExceptionFlow`.
+---
 
-The same path is used for order holds, fulfillment holds, invoice holds, and cash applications. Each stage has its own table, form button, and flow. The button is available while `current_status` is `BLOCKED`. It writes a correlation id, inserts a `BUTTON` audit event, and sets `PROCESSING`. The flow passes that correlation id and the process name (`credit`, `order`, `fulfillment`, `invoice`, or `cash`) into the same Bedrock action. The prompt says which stage is being reviewed. The flow never sets `RELEASED`.
+## Security Invariants
 
-The flow looks up `customer_metrics` by `customer_id`, then calls the Integration Hub script step. That step reads the endpoint, access key, secret key, region, and model id from password and string system properties, signs the request with SigV4, and returns `status_code`, `body`, `error`, `timed_out`, `correlation_id`, and `aws_request_id`. `aws_request_id` is the `x-amzn-requestid` response header. The script does not log the access key, the secret, or the Authorization header. If the status is missing, the call timed out, or the status is not 200, the flow appends a warning to `ai_justification` and sets `current_status` back to `BLOCKED`. Either way, the flow inserts a `BEDROCK_RESULT` audit event.
+The architecture enforces four non-negotiable enterprise security invariants:
 
-`POST /api/x_ent_erp_ovl/v1/agent-callback` requires header `X-Agent-Callback-Token`, compared in constant time with property `x_ent_erp_ovl.callback_token`. The body is `order_id`, `decision` (`APPROVED` or `DENIED`), `justification`, and optional `process`. `order-id` is accepted when `order_id` is absent. A missing `process` means `credit`. `process` may be `credit`, `order`, `fulfillment`, `invoice`, or `cash`. `APPROVED` sets `RELEASED`. `DENIED` sets `BLOCKED`. The justification is appended to `ai_justification`. A successful update inserts a `CALLBACK` audit event.
+### 1. Non-Delegation of Authority (Flows Never Release)
+- The automated ServiceNow Flow triggers Bedrock strictly for **advisory analysis**.
+- The Flow **never** sets a record to `RELEASED`. If the model call fails or times out, status reverts to `BLOCKED`.
+- State transition to `RELEASED` can only occur through the Scripted REST callback (`POST /api/x_ent_erp_ovl/v1/agent-callback`), ensuring all approvals require explicit human sign-off or external policy evaluation (e.g. from [`agent-governance`](https://github.com/c2pig/agent-governance)).
 
-## Audit trail
+### 2. SigV4 Cryptographic Machine Identity
+- ServiceNow IntegrationHub script calculates cryptographic **AWS Signature Version 4 (SigV4)** with HMAC-SHA256 headers (`Authorization`, `x-amz-date`, `x-amz-content-sha256`) for every request.
+- Proves machine identity to AWS IAM and Amazon Bedrock without sending credentials over third-party proxies.
 
-Two trails are recorded on purpose.
+### 3. Strict Secret Masking & Isolation
+- Sensitive credentials (`aws_access_key`, `aws_secret_key`, and `callback_token`) reside in ServiceNow encrypted system properties (`glide.sys_properties` with type `password2way`).
+- Passwords and Authorization headers are masked from system logs, audit events, journals, and client scripts.
+- Callback token verification uses constant-time string comparison to resist timing attacks.
 
-Field history. Every stage table, `customer_metrics`, and `x_ent_erp_ovl_audit_events` are created with `audit: true`. ServiceNow then writes `sys_audit` when a field such as status or the journal changes. Open the record and use the form History list to see who changed a field.
+### 4. Dual Audit Trails & Correlation Join
+- **Native ServiceNow Field Audit (`sys_audit`)**: Every stage table, `customer_metrics`, and `x_ent_erp_ovl_audit_events` is defined with `audit: true` to track field deltas natively.
+- **Append-Only Immutable Event Trail (`x_ent_erp_ovl_audit_events`)**: Records `BUTTON`, `BEDROCK_RESULT`, and `CALLBACK` events with `correlation_id` and the AWS `x-amzn-requestid` (`aws_request_id`), enabling cross-system join queries between ServiceNow and AWS CloudWatch / S3 Bedrock logs.
 
-Event trail. `x_ent_erp_ovl_audit_events` is append-only. Each row records the process, order id, source table, source record, event (`BUTTON`, `BEDROCK_RESULT`, or `CALLBACK`), correlation id, AWS request id, HTTP status, decision, and a short note. The button, each stage flow, and the callback insert a row. The table does not store the AWS secret or the full model prompt. The workspace lists this table next to the stage tables.
+---
 
-The correlation id is written on the stage row when the person clicks the button, passed into Bedrock, and copied onto each audit event for that run. The AWS request id on the `BEDROCK_RESULT` row is the join key to Bedrock’s own logs. The callback copies that request id onto the `CALLBACK` row when it finds a matching correlation id.
+## Ecosystem Integration
 
-## Bedrock invocation logging
+This repository operates within the **[0trust.dev](https://0trust.dev)** Zero Trust AI portfolio:
 
-This app cannot turn on AWS logging. Model invocation logging is an account setting in Amazon Bedrock.
+| Ecosystem Pillar | Repository | How It Connects to This ERP Overlay |
+| :--- | :--- | :--- |
+| **Pillar 0: Platform IaC** | [`managed-infrastructure`](https://github.com/c2pig/managed-infrastructure) | Provisions AWS IAM roles, STS trust policies, and Bedrock model permissions consumed by this app. |
+| **Pillar 1: Agent Identity** | [`cross-cloud-agent-identity`](https://github.com/c2pig/cross-cloud-agent-identity) | Provides cryptographic machine identity and On-Behalf-Of (OBO) token exchange for multi-cloud agents. |
+| **Pillar 2: Workforce IAM** | [`iam-demo`](https://github.com/c2pig/iam-demo) | Manages workforce identity lifecycle (SCIM/JML) and JIT privileged access to the ServiceNow Workspace. |
+| **Pillar 3: MCP Governance** | [`agent-governance`](https://github.com/c2pig/agent-governance) | Upstream policy interceptor enforcing DLP, RBAC, and HITL thresholds for Bedrock agents calling ERP tools. |
+| **Pillar 4: System of Action** | **`now-erp-overlay-app`** *(This repo)* | The enterprise system of record and action executing audited workflows with deterministic HITL release gates. |
 
-1. In the Bedrock console, open Settings and turn on model invocation logging.
-2. Send the logs to CloudWatch Logs, S3, or both.
-3. Include request metadata and response metadata. Leave text and image data off if you do not want the prompt stored in AWS.
-4. Do not copy the AWS secret into a ServiceNow log, journal, or audit note. The password properties stay on the instance, and the script does not write them out.
-5. Find the call with the `aws_request_id` stored on the audit event. That value is the `x-amzn-requestid` header. Search CloudWatch Logs or the S3 log objects for the same id. CloudTrail records the API call as well when data events are enabled for Bedrock.
+---
 
-The ServiceNow event row and the Bedrock log then show the same request.
-
-## Layout
+## Repository Layout
 
 ```text
-now.config.json                 scope, name, and SDK paths
-package.json
-src/app.fluent.ts               tables, role, and system properties
-src/server/api-routes.ts        callback REST API
-src/server/spoke-actions.ts     signed InvokeModel action
-src/server/workflow-flows.ts    one audit flow per stage
-src/ui/workspace-components.ts  workspace lists and one queue button per stage
+now-erp-overlay-app/
+├── now.config.json                 # Application scope (x_ent_erp_ovl) and SDK configuration
+├── package.json                    # @servicenow/sdk 4.14.0 & @servicenow/cli 30.2.0 dependencies
+├── tsconfig.json                   # TypeScript configuration
+├── scripts/
+│   └── prepare-fluent-entry.mjs    # Fluent entry preparation pre-build hook
+├── src/
+│   ├── app.fluent.ts               # ServiceNow Fluent schema (tables, roles, system properties)
+│   ├── generated/keys.ts           # Generated Fluent reference keys
+│   ├── server/
+│   │   ├── api-routes.ts           # Scripted REST API (/agent-callback) with token validation
+│   │   ├── spoke-actions.ts        # IntegrationHub SigV4 InvokeModel script action
+│   │   └── workflow-flows.ts       # 5 stage workflow flows (credit, order, fulfillment, invoice, cash)
+│   └── ui/
+│       └── workspace-components.ts # Workspace lists and "Run Agentic Audit" UI action buttons
+├── docs/
+│   ├── er-diagram.svg              # Entity-Relationship diagram across ERP exception tables
+│   └── use-cases.md                # Enterprise use cases and stage flow walkthroughs
+└── LESSON_LEARN.md                 # Real-world deployment lessons: scope naming and company code config
 ```
 
-The compiler reads `*.now.ts`. `npm run build` and `npm run typecheck` copy these sources to sibling `*.now.ts` files first. The copies are gitignored.
+---
 
-## Build
+## Build & Verification
 
-From the repository root, with Node.js 20 or newer:
+### Prerequisites
+- Node.js 20+
+- npm 10+
+
+### 1-Command Local Compilation (Offline)
+This project compiles entirely offline using the `@servicenow/sdk` Fluent compiler (`now-sdk build`), validating all TypeScript definitions, table schemas, flows, and REST endpoints:
 
 ```bash
+# Install dependencies
 npm install
+
+# Run TypeScript type check
 npm run typecheck
+
+# Compile ServiceNow Fluent metadata to dist/app
 npm run build
 ```
 
-`npm run typecheck` and `npm run build` run offline and write platform metadata under `dist/app`. `npm run deploy` (`now-sdk install`), `now-sdk transform` without `--from`, `now-sdk dependencies`, and `now-sdk auth` need a ServiceNow instance. Replace `scopeId` in `now.config.json` if scope `x_ent_erp_ovl` already exists on that instance.
+Platform XML metadata and update sets are generated into `dist/app/` without requiring an active ServiceNow instance connection:
+- `dist/app/dictionary/`: Data dictionary definitions for stage exception tables
+- `dist/app/scope/`: Application scope metadata
+- `dist/app/update/`: Packaged update set XML definitions
+
+### Deployment to ServiceNow Instance (Optional)
+When deploying to a live ServiceNow development instance:
+
+```bash
+# Deploy to connected instance
+npm run deploy
+```
+
+> [!TIP]
+> **Company Code Scoping**: Custom scopes on personal developer instances require matching company code configurations. Refer to [`LESSON_LEARN.md`](LESSON_LEARN.md) for how `glide.appcreator.company.code` and `sn_appauthor.all_company_keys` configure scope `x_ent_erp_ovl`.
+
+---
+
+## Amazon Bedrock Invocation Logging
+
+To enable full end-to-end auditability across ServiceNow and AWS Bedrock:
+1. In the **AWS Bedrock Console**, navigate to **Settings** -> **Model invocation logging**.
+2. Select destination (**Amazon CloudWatch Logs** or **Amazon S3**).
+3. Include request and response metadata.
+4. Cross-reference the `aws_request_id` stored on ServiceNow `x_ent_erp_ovl_audit_events` rows with CloudWatch log search queries (`filter @requestId = "..."`).
