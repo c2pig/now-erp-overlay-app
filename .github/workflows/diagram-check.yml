@@ -1,0 +1,29 @@
+name: Architecture Diagram Sync Check
+
+on:
+  pull_request:
+
+jobs:
+  diagram-sync-check:
+    name: Verify Local Architecture Diagram Updated
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-diagram-check')"
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if code changed without docs/ARCHITECTURE.md update
+        run: |
+          CHANGED_FILES=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")
+          CODE_CHANGED=$(echo "$CHANGED_FILES" | grep -E '^(src/|app/|infra/|terraform/)' || true)
+          DOC_UPDATED=$(echo "$CHANGED_FILES" | grep -E '^(docs/ARCHITECTURE\.md|docs/diagrams/.*\.svg|README\.md)$' || true)
+
+          if [ -n "$CODE_CHANGED" ] && [ -z "$DOC_UPDATED" ]; then
+            echo "::error::Code changed without updating docs/ARCHITECTURE.md (or adding 'skip-diagram-check' label)."
+            exit 1
+          fi
